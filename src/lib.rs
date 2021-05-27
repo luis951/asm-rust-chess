@@ -37,12 +37,16 @@ pub fn board_to_matrix(board: &chess::Board) -> [[u8;8];8] {
     for line in formated_string {
         let mut new_line: [u8;8] = [0; 8];
         let mut prev_ch = 'i';
+        let mut empty_accumulator = 0;
         for (i, ch) in line.chars().enumerate(){
             if (ch>='a' && ch<='z') || (ch>='A' && ch<='Z'){
                 if prev_ch>='1' && prev_ch<='7'{
-                    new_line[i + prev_ch as usize - 48 - 1] = char_to_int(ch);
+                    empty_accumulator += prev_ch as usize - 48;
+                    new_line[empty_accumulator] = char_to_int(ch); 
+                    empty_accumulator+=1;
                 } else {
                     new_line[i] = char_to_int(ch);
+                    empty_accumulator+=1;
                 }
             }
             prev_ch = ch;

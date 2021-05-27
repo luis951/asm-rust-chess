@@ -1,5 +1,5 @@
 [package]
-name = "ChessEngineAOC"
+name = "asm-rust-chess"
 version = "0.1.0"
 authors = ["luis951 <luishrt@hotmail.com>"]
 edition = "2018"
