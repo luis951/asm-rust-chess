@@ -1,25 +1,25 @@
-use chess;
-use std::str::FromStr;
-
 mod lib;
 
 fn main() {
-    let mut board_matrix = lib::board_to_matrix(&lib::GAME.lock().unwrap().current_position());
+    let mut board_matrix = lib::board_to_matrix(lib::BOARD.lock().unwrap().get_board());
     print_board(board_matrix);
     let mut move_str = ['h' as u8, '2' as u8,'h' as u8, '4' as u8];
-    println!("{}", lib::update_asm_board(&mut board_matrix, &move_str));
+    println!("{}", lib::userMove(&mut board_matrix, &move_str));
     print_board(board_matrix);
     move_str = ['h' as u8, '7' as u8,'h' as u8, '6' as u8];
-    println!("{}", lib::update_asm_board(&mut board_matrix, &move_str));
+    println!("{}", lib::userMove(&mut board_matrix, &move_str));
     print_board(board_matrix);
     move_str = ['d' as u8, '2' as u8,'d' as u8, '4' as u8];
-    println!("{}", lib::update_asm_board(&mut board_matrix, &move_str));
+    println!("{}", lib::userMove(&mut board_matrix, &move_str));
     print_board(board_matrix);
     move_str = ['d' as u8, '7' as u8,'d' as u8, '6' as u8];
-    println!("{}", lib::update_asm_board(&mut board_matrix, &move_str));
+    println!("{}", lib::userMove(&mut board_matrix, &move_str));
     print_board(board_matrix);
     move_str = ['f' as u8, '2' as u8,'f' as u8, '4' as u8];
-    println!("{}", lib::update_asm_board(&mut board_matrix, &move_str));
+    println!("{}", lib::userMove(&mut board_matrix, &move_str));
+    print_board(board_matrix);
+    
+    println!("{}", lib::computerMove(&mut board_matrix, 3));
     print_board(board_matrix);
 }
 

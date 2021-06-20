@@ -1,77 +1,135 @@
-use chess;
+extern crate chess_engine;
+
+use chess_engine::*;
 use std::sync::Mutex;
-use std::str::FromStr;
 use std::str;
 
+use std::convert::TryFrom;
+
+pub struct ChessBoard {
+    board: Board
+}
+
+impl ChessBoard {
+    fn default() -> ChessBoard {
+        ChessBoard{board: Board::default()}
+    }
+
+    pub fn set_board(&mut self, new_board: Board) {
+        self.board = new_board;
+    }
+
+    pub fn get_board(&self) -> Board {
+        self.board
+    }
+}
+
 lazy_static::lazy_static! {
-    pub static ref GAME: Mutex<chess::Game> = Mutex::new(chess::Game::new());
+    pub static ref BOARD: Mutex<ChessBoard> = Mutex::new(ChessBoard::default());
 }
 
 #[no_mangle]
-pub extern "C" fn update_asm_board(address: &mut [[u8;8];8], move_str: &[u8;4]) -> u8 {
-    let fixed_move_str = str::from_utf8(move_str).unwrap();
-    let chess_move = match chess::ChessMove::from_str(&fixed_move_str) {
+pub extern "C" fn computerMove(address: &mut [[u8;8];8], steps: u8) -> u8 {
+    let mut cur_board = BOARD.lock().unwrap().get_board();
+
+    let (m, _, _) = cur_board.get_best_next_move(steps as i32);
+
+    match cur_board.play_move(m) {
+        GameResult::Continuing(next_board) => {
+            cur_board = next_board;
+            BOARD.lock().unwrap().set_board(cur_board);
+        }
+
+        GameResult::Victory(_) => {
+            return 3;
+        }
+
+        GameResult::IllegalMove(_) => {
+            return 1;
+        }
+
+        GameResult::Stalemate => {
+            return 4;
+        }
+    }
+
+    let board = board_to_matrix(cur_board);
+    for i in 0..8{
+        for j in 0..8{
+            address[i][j] = board[i][j];
+        }
+    }
+
+    return 0;
+}
+
+#[no_mangle]
+pub extern "C" fn userMove(address: &mut [[u8;8];8], move_str: &[u8;4]) -> u8 {
+    let fixed_move_str = str::from_utf8(move_str).unwrap().to_string();
+    let chess_move = match Move::try_from(fixed_move_str) {
         Ok(var) => var,
         Err(_) => return 2 
     };
-    if !GAME.lock().unwrap().make_move(chess_move){
-        return 1;
-    }
-        
-    let board = board_to_matrix(&GAME.lock().unwrap().current_position());
-    for i in 0..8{
-        for j in 0..8{
-            address[7-i][j] = board[i][j];
+
+    let mut cur_board = BOARD.lock().unwrap().get_board();
+    
+    match cur_board.play_move(chess_move) {
+        GameResult::Continuing(next_board) => {
+            cur_board = next_board;
+            BOARD.lock().unwrap().set_board(cur_board);
+        }
+
+        GameResult::Victory(_) => {
+            return 3;
+        }
+
+        GameResult::IllegalMove(_) => {
+            return 1;
+        }
+
+        GameResult::Stalemate => {
+            return 4;
         }
     }
+        
+    let board = board_to_matrix(cur_board);
+    for i in 0..8{
+        for j in 0..8{
+            address[i][j] = board[i][j];
+        }
+    }
+
     return 0;
 }
 
 
-pub fn board_to_matrix(board: &chess::Board) -> [[u8;8];8] {
-    let mut matrix_board: [[u8;8];8] = [[255; 8];8];
-    let board_to_string = &format!("{}", board);
-    let splitted_string: Vec<&str> = board_to_string.split(" ").collect();
-    let formated_string: Vec<&str> = splitted_string[0].split("/").collect();
-    let mut k = 0;
-    for line in formated_string {
-        let mut new_line: [u8;8] = [0; 8];
-        let mut prev_ch = 'i';
-        let mut empty_accumulator = 0;
-        for (i, ch) in line.chars().enumerate(){
-            if (ch>='a' && ch<='z') || (ch>='A' && ch<='Z'){
-                if prev_ch>='1' && prev_ch<='7'{
-                    empty_accumulator += prev_ch as usize - 48;
-                    new_line[empty_accumulator] = char_to_int(ch); 
-                    empty_accumulator+=1;
-                } else {
-                    new_line[i] = char_to_int(ch);
-                    empty_accumulator+=1;
-                }
-            }
-            prev_ch = ch;
-        }
-        matrix_board[k] = new_line;
-        k+=1;
-    }
-    return matrix_board;
-}
+pub fn board_to_matrix(board: Board) -> [[u8;8];8] {
+    let mut matrix_board: [[u8;8];8] = [[255; 8];8]; 
+    for i in 0..8 {
+        for j in 0..8 {
+            let piece = match board.get_piece(Position::new(i, j)) {
+                Some(ref piece) => format!("{}", piece),
+                None => " ".to_string(),
+            };
 
-fn char_to_int(piece: char) -> u8{
-    match piece{
-        'r' => return 11,
-        'n' => return 13,
-        'b' => return 12,
-        'q' => return 10,
-        'k' => return 9,
-        'p' => return 14,
-        'R' => return 3,
-        'N' => return 5,
-        'B' => return 4,
-        'Q' => return 2,
-        'K' => return 1,
-        'P' => return 6,
-        'e' => return 0,
-        _ => return 15
+            let num: u8 = match &piece as &str {
+                "♚" => 1,
+                "♛" => 2,
+                "♜" => 3,
+                "♝" => 4,
+                "♞" => 5,
+                "♟︎" => 6,
+                "♔" => 1 + 8,
+                "♕" => 2 + 8,
+                "♖" => 3 + 8,
+                "♗" => 4 + 8,
+                "♘" => 5 + 8,
+                "♙" => 6 + 8,
+                _ => 0
+            };
+            matrix_board[i as usize][j as usize] = num;
+        }
     }
+
+    return matrix_board;
 }
