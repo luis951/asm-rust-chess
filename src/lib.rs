@@ -75,9 +75,17 @@ pub extern "C" fn userMove(address: &mut [[u8;8];8], move_str: *const i8) -> u8 
         fixed_move_str = CStr::from_ptr(move_str).to_str().unwrap().to_owned();
     }
 
-    let chess_move = match Move::try_from(fixed_move_str) {
-        Ok(var) => var,
-        Err(_) => return 2 
+    let chess_move;
+    match &fixed_move_str as &str {
+        "O-O" | "o-o" | "0-0" => { //HACK FOR LIB BUG
+            chess_move = Move::KingSideCastle;
+        },
+        _ => {
+            chess_move = match Move::try_from(fixed_move_str) {
+                Ok(var) => var,
+                Err(_) => return 2 
+            };
+        }
     };
 
     let mut cur_board = BOARD.lock().unwrap().get_board();
