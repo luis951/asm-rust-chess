@@ -4,6 +4,8 @@ use chess_engine::*;
 use std::sync::Mutex;
 use std::str;
 
+use std::ffi::CStr;
+
 use std::convert::TryFrom;
 
 pub struct ChessBoard {
@@ -40,8 +42,11 @@ pub extern "C" fn computerMove(address: &mut [[u8;8];8], steps: u8) -> u8 {
             BOARD.lock().unwrap().set_board(cur_board);
         }
 
-        GameResult::Victory(_) => {
-            return 3;
+        GameResult::Victory(color) => {
+            if color == WHITE {
+                return 3;
+            }
+            return 4;
         }
 
         GameResult::IllegalMove(_) => {
@@ -49,7 +54,7 @@ pub extern "C" fn computerMove(address: &mut [[u8;8];8], steps: u8) -> u8 {
         }
 
         GameResult::Stalemate => {
-            return 4;
+            return 5;
         }
     }
 
@@ -64,8 +69,12 @@ pub extern "C" fn computerMove(address: &mut [[u8;8];8], steps: u8) -> u8 {
 }
 
 #[no_mangle]
-pub extern "C" fn userMove(address: &mut [[u8;8];8], move_str: &[u8;4]) -> u8 {
-    let fixed_move_str = str::from_utf8(move_str).unwrap().to_string();
+pub extern "C" fn userMove(address: &mut [[u8;8];8], move_str: *const i8) -> u8 {
+    let fixed_move_str: String;
+    unsafe {
+        fixed_move_str = CStr::from_ptr(move_str).to_str().unwrap().to_owned();
+    }
+
     let chess_move = match Move::try_from(fixed_move_str) {
         Ok(var) => var,
         Err(_) => return 2 
@@ -79,8 +88,11 @@ pub extern "C" fn userMove(address: &mut [[u8;8];8], move_str: &[u8;4]) -> u8 {
             BOARD.lock().unwrap().set_board(cur_board);
         }
 
-        GameResult::Victory(_) => {
-            return 3;
+        GameResult::Victory(color) => {
+            if color == WHITE {
+                return 3;
+            }
+            return 4;
         }
 
         GameResult::IllegalMove(_) => {
@@ -88,7 +100,7 @@ pub extern "C" fn userMove(address: &mut [[u8;8];8], move_str: &[u8;4]) -> u8 {
         }
 
         GameResult::Stalemate => {
-            return 4;
+            return 5;
         }
     }
         
